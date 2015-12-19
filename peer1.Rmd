@@ -1,0 +1,63 @@
+---
+title: "Peer1"
+output: 
+  html_document: 
+    keep_md: yes
+---
+#Loading library
+```{r}
+library("dplyr")
+library("ggplot2")
+library("lubridate")
+```
+
+#Loading and preprocessing the data
+```{r, echo=TRUE}
+activity<-read.table("activity.csv", header=TRUE, sep=",", as.is=TRUE)
+```
+
+#What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+activity.wo.NA<-dplyr::filter(activity, steps!="NA")
+activity.wo.NA %>% dplyr::group_by(date) %>%
+  dplyr::summarise(TotalSteps=sum(steps))-> TotalSteps
+ggplot2::ggplot(TotalSteps, aes(TotalSteps))+geom_histogram()
+meanSteps.orig<-mean(TotalSteps$TotalSteps)
+meanSteps.orig
+medianSteps.orig<-median(TotalSteps$TotalSteps)
+medianSteps.orig
+```
+
+#What is the average daily activity pattern?
+```{r, echo=TRUE}
+activity.wo.NA %>% group_by(interval) %>% 
+  summarise(MeanSteps=mean(steps))-> MeanSteps
+ggplot(MeanSteps, aes(interval,MeanSteps))+geom_line()
+MeanSteps[which.max(MeanSteps$MeanSteps),]$interval
+```
+
+#Imputing missing values
+```{r, echo=TRUE}
+sum(is.na(activity))
+activity.join<-left_join(activity,MeanSteps)
+activity.join[is.na(activity.join$steps),1]<-activity.join[is.na(activity.join$steps),4]
+activity.impute<-activity.join[,-4]
+activity.impute %>% group_by(date) %>% 
+  summarise(TotalSteps=sum(steps))-> TotalSteps.impute
+ggplot(TotalSteps.impute, aes(TotalSteps))+geom_histogram()
+meanSteps.impute<-mean(TotalSteps.impute$TotalSteps)
+meanSteps.impute
+medianSteps.impute<-median(TotalSteps.impute$TotalSteps)
+medianSteps.impute
+```
+*Yes, value median  is changed, because impute values changed by median and median grow.*
+
+#Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+activity.impute$date<-as.Date(activity.impute$date)
+activity.impute$wday<-wday(as.Date(activity.impute$date))
+activity.impute$dayweek<-factor(activity.impute$wday %in% c(2:6),label=c("weekend", "weekday"))
+activity.impute %>% group_by(interval, dayweek) %>% 
+  summarise(MeanSteps=mean(steps))-> MeanStepsDayWeek
+ggplot(MeanStepsDayWeek, aes(interval,MeanSteps))+geom_line()+facet_grid(dayweek~.)
+```
